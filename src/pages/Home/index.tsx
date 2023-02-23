@@ -1,17 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { MdAddShoppingCart } from 'react-icons/md';
 
+import { useQuery } from 'react-query';
+
 import { ProductList } from './styles';
 import { api } from '../../services/api';
 import { formatPrice } from '../../util/format';
 import { useCart } from '../../hooks/useCart';
+import { Product } from '../../types';
 
-interface Product {
-  id: number;
-  title: string;
-  price: number;
-  image: string;
-}
+// interface Product {
+//   id: number;
+//   title: string;
+//   price: number;
+//   image: string;
+// }
 
 interface ProductFormatted extends Product {
   priceFormatted: string;
@@ -23,43 +26,66 @@ interface CartItemsAmount {
 
 const Home = (): JSX.Element => {
   // const [products, setProducts] = useState<ProductFormatted[]>([]);
-  // const { addProduct, cart } = useCart();
 
-  // const cartItemsAmount = cart.reduce((sumAmount, product) => {
-  //   // TODO
-  // }, {} as CartItemsAmount)
+  const { isLoading, error, data: products } = useQuery('listProducts', async () =>
+    await fetch('http://localhost:3333/products').then(res =>
+      res.json()
+    ).then(res => {
+      const modifiedData = res.map((product: ProductFormatted) => ({
+        ...product,
+        priceFormatted: formatPrice(product.price)
+      }))
 
-  useEffect(() => {
-    async function loadProducts() {
-      // TODO
-    }
+      return modifiedData;
+    }), {
+    initialData: [],
+  })
 
-    loadProducts();
-  }, []);
+  const { addProduct, cart } = useCart();
+
+  console.info("[Carrinho]", cart)
+
+  const cartItemsAmount = cart.reduce((sumAmount, { id, amount }:Product) => {
+    const sumAmountItems = {...sumAmount}
+
+    sumAmountItems[id] = amount;
+
+    return sumAmountItems;
+  }, {} as CartItemsAmount)
+
+  // useEffect(() => {
+  //   async function loadProducts() {
+  //     // TODO
+  //   }
+
+  //   loadProducts();
+  // }, []);
 
   function handleAddProduct(id: number) {
-    // TODO
+    addProduct(id);
   }
 
   return (
     <ProductList>
-      <li>
-        <img src="https://rocketseat-cdn.s3-sa-east-1.amazonaws.com/modulo-redux/tenis1.jpg" alt="Tênis de Caminhada Leve Confortável" />
-        <strong>Tênis de Caminhada Leve Confortável</strong>
-        <span>R$ 179,90</span>
-        <button
-          type="button"
-          data-testid="add-product-button"
-        // onClick={() => handleAddProduct(product.id)}
-        >
-          <div data-testid="cart-product-quantity">
-            <MdAddShoppingCart size={16} color="#FFF" />
-            {/* {cartItemsAmount[product.id] || 0} */} 2
-          </div>
+      {products?.map(({ id, image, title, price, priceFormatted }: ProductFormatted) => (
+        <li key={`product-item-${id}`}>
+          <img src={image} alt={`Imagem ilustrativa do produto ${title}`} />
+          <strong>{title}</strong>
+          <span>{priceFormatted}</span>
+          <button
+            type="button"
+            data-testid="add-product-button"
+            onClick={() => handleAddProduct(id)}
+          >
+            <div data-testid="cart-product-quantity">
+              <MdAddShoppingCart size={16} color="#FFF" />
+              {cartItemsAmount[id] || 0}
+            </div>
 
-          <span>ADICIONAR AO CARRINHO</span>
-        </button>
-      </li>
+            <span>ADICIONAR AO CARRINHO</span>
+          </button>
+        </li>
+      ))}
     </ProductList>
   );
 };
